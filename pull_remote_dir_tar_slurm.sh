@@ -5,7 +5,7 @@
 #   pull_remote_dir_tar_slurm
 #
 # Usage:
-#   pull_remote_dir_tar_slurm <user@host> <remoteDirPth> <localDirPth> <slurm_account> <time_limit_DD-HH:MM:SS> <rmRemoteDir_true|false> [pigz_threads]
+#   pull_remote_dir_tar_slurm --host=<user@host> --remote-dir=<remoteDirPth> --local-dir=<localDirPth> --slurm-acct=<slurm_account> --time-limit=<time_limit_DD-HH:MM:SS> --remove-remote=<rmRemoteDir_true|false> --threads=[pigz_threads]
 #
 # Example:
 #   source /path/to/pull_remote_dir_tar_slurm.sh
@@ -29,47 +29,91 @@
 # - Creates tarball in the parent of remoteDirPth so it is not inside the archived tree.
 # - After job completes, downloads tarball (rsync if available, else scp), extracts locally,
 #   then optionally deletes the REMOTE DIRECTORY if rmRemoteDir=true.
-#
 
-pull_remote_dir_tar_slurm() {
-  local remoteHost="$1"
-  local remoteDirPth="$2"
-  local localDirPth="$3"
-  local slurmAccount="$4"
-  local timeLimit="$5"
-  local rmRemoteDir="$6"
-  local pigzThreads="${7:-8}"
+parse_args() {
+  # Defaults
+  pigzThreads=8
 
+  # Parse named args
+  for arg in "$@"; do
+    case "$arg" in
+      --host=*)
+        remoteHost="${arg#*=}"
+        ;;
+      --remote-dir=*)
+        remoteDirPth="${arg#*=}"
+        ;;
+      --local-dir=*)
+        localDirPth="${arg#*=}"
+        ;;
+      --slurm-acct=*)
+        slurmAccount="${arg#*=}"
+        ;;
+      --time-limit=*)
+        timeLimit="${arg#*=}"
+        ;;
+      --remove-remote=*)
+        rmRemoteDir="${arg#*=}"
+        ;;
+      --threads=*)
+        pigzThreads="${arg#*=}"
+        ;;
+      *)
+        echo "ERROR: Unknown argument: $arg"
+        return 2
+        ;;
+    esac
+  done
+
+  # === VALIDATION ===
+
+  # Required fields
   if [[ -z "$remoteHost" || -z "$remoteDirPth" || -z "$localDirPth" || -z "$slurmAccount" || -z "$timeLimit" || -z "$rmRemoteDir" ]]; then
-    echo "ERROR: Missing args."
-    echo "Usage: pull_remote_dir_tar_slurm <user@host> <remoteDirPth> <localDirPth> <slurm_account> <time_limit_DD-HH:MM:SS> <rmRemoteDir_true|false> [pigz_threads]"
+    echo "ERROR: Missing required arguments."
+    echo "Required:"
+    echo "  --host=<user@host>"
+    echo "  --remote-dir=<remoteDirPath>"
+    echo "  --local-dir=<localDirPath>"
+    echo "  --slurm-acct=<slurm_account>"
+    echo "  --time-limit=<DD-HH:MM:SS>"
+    echo "  --remove-remote=<true|false>"
+    echo "Optional:"
+    echo "  --threads=<pigz_threads> (default: 8)"
     return 2
   fi
 
+  # Validate local dir
   if [[ ! -d "$localDirPth" ]]; then
-    echo "ERROR: localDirPth does not exist or is not a directory: $localDirPth"
+    echo "ERROR: local-dir does not exist or is not a directory: $localDirPth"
     return 2
   fi
 
+  # Validate threads
   if ! [[ "$pigzThreads" =~ ^[0-9]+$ ]] || [[ "$pigzThreads" -lt 1 ]]; then
-    echo "ERROR: pigz_threads must be a positive integer (got: $pigzThreads)"
+    echo "ERROR: threads must be a positive integer (got: $pigzThreads)"
     return 2
   fi
 
-  # Validate time format DD-HH:MM:SS
+  # Validate time format
   if ! [[ "$timeLimit" =~ ^[0-9]+-[0-9]{2}:[0-9]{2}:[0-9]{2}$ ]]; then
-    echo "ERROR: time_limit must match DD-HH:MM:SS (got: $timeLimit)"
+    echo "ERROR: time-limit must match DD-HH:MM:SS (got: $timeLimit)"
     return 2
   fi
 
-  # Validate rmRemoteDir boolean-ish
+  # Validate boolean
   case "$rmRemoteDir" in
     true|false) ;;
     *)
-      echo "ERROR: rmRemoteDir must be 'true' or 'false' (got: $rmRemoteDir)"
+      echo "ERROR: remove-remote must be true or false (got: $rmRemoteDir)"
       return 2
       ;;
   esac
+}
+
+pull_remote_dir_tar_slurm() {
+  if (( $# > 0 )); then
+    parse_args "$@" || return $?
+  fi
 
   local localAbs
   localAbs="$(cd "$localDirPth" && pwd -P)" || return 2
@@ -251,3 +295,6 @@ SBATCH
   fi
 }
 
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    pull_remote_dir_tar_slurm "$@"
+fi
