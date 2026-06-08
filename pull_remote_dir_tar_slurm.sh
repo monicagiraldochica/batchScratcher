@@ -255,6 +255,56 @@ download_extract_tar(){
   printf '%s\n' "${localTar}"
 }
 
+cleanup(){
+  local rmRemoteDir="$1"
+  local remoteHost="$2"
+  local localTar="$3"
+  local remoteDirPth="$4"
+  local remoteTar="$5"
+  local remoteJobDir="$6"
+
+  if [[ "${rmRemoteDir}" == "true" ]]; then
+    echo "==> rmRemoteDir=true: preparing to delete remote directory..."
+
+    # Safety: refuse to delete obviously dangerous targets
+    # (You can extend this list for your environment.)
+    local remoteToDelete="${remoteDirPth%/}"
+    if [[ -z "${remoteToDelete}" || "${remoteToDelete}" == "/" ]]; then
+      echo "ERROR: Refusing to delete remote directory: '${remoteToDelete}'"
+      return 10
+    fi
+
+    # Remote-side safety checks: must exist and be a directory, and not be the parent itself.
+    ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q \
+      "set -euo pipefail
+       tgt=\"${remoteToDelete}\"
+       if [[ ! -d \"\$tgt\" ]]; then
+         echo \"ERROR: Remote delete target is not a directory (or no longer exists): \$tgt\" >&2
+         exit 11
+       fi
+       if [[ \"\$tgt\" == \"/\" ]]; then
+         echo \"ERROR: Refusing to delete '/'\" >&2
+         exit 12
+       fi
+       rm -rf -- \"\$tgt\"
+       echo \"Deleted remote directory: \$tgt\"")" || return 10
+  fi
+
+  # Optional cleanup toggles (tar/jobdir/local tar)
+  if [[ "${CLEAN_REMOTE_TAR:-0}" == "1" ]]; then
+    echo "==> Cleaning remote tarball..."
+    ssh -o BatchMode=yes "${remoteHost}" "rm -f $(printf %q "${remoteTar}")" || true
+  fi
+  if [[ "${CLEAN_REMOTE_JOBDIR:-0}" == "1" ]]; then
+    echo "==> Cleaning remote job dir..."
+    ssh -o BatchMode=yes "${remoteHost}" "rm -rf $(printf %q "${remoteJobDir}")" || true
+  fi
+  if [[ "${CLEAN_LOCAL_TAR:-0}" == "1" ]]; then
+    echo "==> Cleaning local tarball..."
+    rm -f "${localTar}" || true
+  fi
+}
+
 pull_remote_dir_tar_slurm() {
   if (( $# > 0 )); then
     parse_args "$@" || return $?
@@ -307,47 +357,7 @@ pull_remote_dir_tar_slurm() {
   local localTar
   localTar="$(download_extract_tar "${remoteHost}" "${remoteTar}" "${remoteJobDir}" "${localAbs}" "${tarName}" "${remoteBase}" "${stamp}")" || return $?
 
-  # Optional: delete remote directory AFTER successful download + extraction
-  if [[ "${rmRemoteDir}" == "true" ]]; then
-    echo "==> rmRemoteDir=true: preparing to delete remote directory..."
-
-    # Safety: refuse to delete obviously dangerous targets
-    # (You can extend this list for your environment.)
-    local remoteToDelete="${remoteDirPth%/}"
-    if [[ -z "${remoteToDelete}" || "${remoteToDelete}" == "/" ]]; then
-      echo "ERROR: Refusing to delete remote directory: '${remoteToDelete}'"
-      return 10
-    fi
-
-    # Remote-side safety checks: must exist and be a directory, and not be the parent itself.
-    ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q \
-      "set -euo pipefail
-       tgt=\"${remoteToDelete}\"
-       if [[ ! -d \"\$tgt\" ]]; then
-         echo \"ERROR: Remote delete target is not a directory (or no longer exists): \$tgt\" >&2
-         exit 11
-       fi
-       if [[ \"\$tgt\" == \"/\" ]]; then
-         echo \"ERROR: Refusing to delete '/'\" >&2
-         exit 12
-       fi
-       rm -rf -- \"\$tgt\"
-       echo \"Deleted remote directory: \$tgt\"")" || return 10
-  fi
-
-  # Optional cleanup toggles (tar/jobdir/local tar)
-  if [[ "${CLEAN_REMOTE_TAR:-0}" == "1" ]]; then
-    echo "==> Cleaning remote tarball..."
-    ssh -o BatchMode=yes "${remoteHost}" "rm -f $(printf %q "${remoteTar}")" || true
-  fi
-  if [[ "${CLEAN_REMOTE_JOBDIR:-0}" == "1" ]]; then
-    echo "==> Cleaning remote job dir..."
-    ssh -o BatchMode=yes "${remoteHost}" "rm -rf $(printf %q "${remoteJobDir}")" || true
-  fi
-  if [[ "${CLEAN_LOCAL_TAR:-0}" == "1" ]]; then
-    echo "==> Cleaning local tarball..."
-    rm -f "${localTar}" || true
-  fi
+  cleanup "${rmRemoteDir}" "${remoteHost}" "${localTar}" "${remoteDirPth}" "${remoteTar}" "${remoteJobDir}"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
