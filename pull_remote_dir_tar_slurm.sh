@@ -167,8 +167,8 @@ chmod +x \"${remoteJobScript}\"
 }
 
 submit_remote_job(){
-  local remoteHost=$1
-  local remoteJobScript=$2
+  local remoteHost="$1"
+  local remoteJobScript="$2"
   local jobid
 
   echo "==> Submitting sbatch job..."
@@ -182,6 +182,41 @@ submit_remote_job(){
   echo
 
   printf '%s\n' "${jobid}"
+}
+
+wait_remote_job(){
+  local jobid="$1"
+  local remoteHost="$2"
+  local remoteJobDir="$3"
+
+  # BatchMode=yes tells SSH not to prompt for passwords or passphrases.
+  echo "==> Waiting for Slurm job to finish..."
+  while true; do
+    local state
+    state="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "sacct -j ${jobid} --format=State --noheader 2>/dev/null | head -n 1 | awk '{print \$1}'")")" || true
+
+    if [[ -z "${state}" || "${state}" == "UNKNOWN" ]]; then
+      state="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "squeue -j ${jobid} -h -o %T 2>/dev/null | head -n 1")")" || true
+    fi
+    if [[ -z "${state}" ]]; then
+      sleep 5
+      continue
+    fi
+
+    echo "  job ${jobid} state: ${state}"
+
+    case "${state}" in
+      COMPLETED) break ;;
+      FAILED|CANCELLED|TIMEOUT|OUT_OF_MEMORY|NODE_FAIL|PREEMPTED)
+        echo "ERROR: Slurm job ended in state: ${state}"
+        echo "Remote slurm output (if available):"
+        ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q \
+          "ls -1 \"${remoteJobDir}\" 2>/dev/null || true; echo; tail -n 200 \"${remoteJobDir}\"/slurm-*.out 2>/dev/null || true")"
+        return 6
+        ;;
+      *) sleep 10 ;;
+    esac
+  done
 }
 
 pull_remote_dir_tar_slurm() {
@@ -231,35 +266,7 @@ pull_remote_dir_tar_slurm() {
   local jobid
   jobid="$(submit_remote_job "${remoteHost}" "${remoteJobScript}")" || return 5
 
-  # BatchMode=yes tells SSH not to prompt for passwords or passphrases.
-  echo "==> Waiting for Slurm job to finish..."
-  while true; do
-    local state
-    state="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q \
-      "sacct -j ${jobid} --format=State --noheader 2>/dev/null | head -n 1 | awk '{print \$1}'")")" || true
-    if [[ -z "${state}" || "${state}" == "UNKNOWN" ]]; then
-      state="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q \
-        "squeue -j ${jobid} -h -o %T 2>/dev/null | head -n 1")")" || true
-    fi
-    if [[ -z "$state" ]]; then
-      sleep 5
-      continue
-    fi
-
-    echo "  job ${jobid} state: ${state}"
-
-    case "$state" in
-      COMPLETED) break ;;
-      FAILED|CANCELLED|TIMEOUT|OUT_OF_MEMORY|NODE_FAIL|PREEMPTED)
-        echo "ERROR: Slurm job ended in state: ${state}"
-        echo "Remote slurm output (if available):"
-        ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q \
-          "ls -1 \"${remoteJobDir}\" 2>/dev/null || true; echo; tail -n 200 \"${remoteJobDir}\"/slurm-*.out 2>/dev/null || true")"
-        return 6
-        ;;
-      *) sleep 10 ;;
-    esac
-  done
+  wait_remote_job "${jobid}" "${remoteHost}" "${remoteJobDir}" || return 6
 
   echo "==> Verifying remote tarball exists..."
   ssh -o BatchMode=yes "${remoteHost}" "test -f $(printf %q "${remoteTar}")" || {
