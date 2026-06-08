@@ -153,9 +153,9 @@ pull_remote_dir_tar_slurm() {
   # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
   ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q \
     "set -euo pipefail
-     mkdir -p \"$remoteJobDir\"
+     mkdir -p \"${remoteJobDir}\"
 
-     cat > \"$remoteJobScript\" <<'SBATCH'
+     cat > \"${remoteJobScript}\" <<'SBATCH'
 #!/bin/bash
 #SBATCH --job-name=pullTar_${remoteBase}
 #SBATCH --output=${remoteJobOut}
