@@ -120,6 +120,7 @@ pull_remote_dir_tar_slurm() {
 
   # Compute remoteParent + remoteBase on the remote side (avoid heredocs/newline quoting issues)
   # Use printf %q to safely inject the path into the remote bash -lc snippet.
+  # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
   local remoteParent remoteBase
   remoteParent="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; dirname -- \"\$p\"'")" || return 3
   remoteBase="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; basename -- \"\$p\"'")" || return 3
@@ -132,6 +133,7 @@ pull_remote_dir_tar_slurm() {
   stamp="$(date +%Y%m%d_%H%M%S)"
   tarName="${remoteBase}_${stamp}.tar.gz"
   remoteTar="${remoteParent%/}/${tarName}"
+  # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
   remoteHome="$(ssh -o BatchMode=yes "${remoteHost}" 'echo "$HOME"')"
   remoteJobDir="${remoteHome}/pullTar_${remoteBase}_${stamp}"
   remoteJobScript="${remoteJobDir}/make_tar.sbatch"
@@ -148,6 +150,7 @@ pull_remote_dir_tar_slurm() {
   echo
 
   echo "==> Writing sbatch script on remote..."
+  # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
   ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q \
     "set -euo pipefail
      mkdir -p \"$remoteJobDir\"
@@ -189,6 +192,7 @@ SBATCH
 
   echo "==> Submitting sbatch job..."
   local jobid
+  # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
   jobid="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "sbatch \"${remoteJobScript}\" | awk '{print \$4}'")")" || return 5
   if [[ -z "${jobid}" ]]; then
     echo "ERROR: Failed to obtain jobid from sbatch."
@@ -197,6 +201,7 @@ SBATCH
   echo "Submitted jobid: ${jobid}"
   echo
 
+  # BatchMode=yes tells SSH not to prompt for passwords or passphrases.
   echo "==> Waiting for Slurm job to finish..."
   while true; do
     local state
