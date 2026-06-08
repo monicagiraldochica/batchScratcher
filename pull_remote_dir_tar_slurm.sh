@@ -110,26 +110,27 @@ parse_args() {
   esac
 }
 
-write_remote_script(){
-  local remoteHost="${1}"
-  local remoteJobDir="${2}"
-  local remoteJobScript="${3}"
-  local remoteBase="${4}"
-  local remoteJobOut="${5}"
-  local slurmAccount="${6}"
-  local timeLimit="${7}"
-  local pigzThreads="${8}"
-  local remoteDirPth="${9}"
+write_remote_script() {
+  local remoteHost="$1"
+  local remoteJobDir="$2"
+  local remoteJobScript="$3"
+  local remoteBase="$4"
+  local remoteJobOut="$5"
+  local slurmAccount="$6"
+  local timeLimit="$7"
+  local pigzThreads="$8"
+  local remoteDirPth="$9"
   local remoteParent="${10}"
   local remoteTar="${11}"
 
   echo "==> Writing sbatch script on remote..."
-  # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
-  ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q \
-    "set -euo pipefail
-     mkdir -p \"${remoteJobDir}\"
 
-     cat > \"${remoteJobScript}\" <<'SBATCH'
+  ssh -o BatchMode=yes "$remoteHost" \
+    "bash -lc $(printf %q "
+set -euo pipefail
+mkdir -p \"$remoteJobDir\"
+
+cat > \"$remoteJobScript\" <<'SBATCH'
 #!/bin/bash
 #SBATCH --job-name=pullTar_${remoteBase}
 #SBATCH --output=${remoteJobOut}
@@ -155,14 +156,14 @@ fi
 
 cd \"\$REMOTE_PARENT\"
 
-# Create tar.gz using pigz
 tar --numeric-owner -cpf - \"\$REMOTE_BASE\" | pigz -p \"\$PIGZ_THREADS\" > \"\$REMOTE_TAR\"
 
 echo \"Created: \$REMOTE_TAR\"
 ls -lh \"\$REMOTE_TAR\"
 SBATCH
 
-     chmod +x \"${remoteJobScript}\"")"
+chmod +x \"$remoteJobScript\"
+")"
 }
 
 pull_remote_dir_tar_slurm() {
