@@ -171,15 +171,15 @@ submit_remote_job(){
   local remoteJobScript="$2"
   local jobid
 
-  echo "==> Submitting sbatch job..."
+  echo "==> Submitting sbatch job..." >&2
   # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
   jobid="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "sbatch \"${remoteJobScript}\" | awk '{print \$4}'")")" || return 5
   if [[ -z "${jobid}" ]]; then
-    echo "ERROR: Failed to obtain jobid from sbatch."
+    echo "ERROR: Failed to obtain jobid from sbatch." >&2
     return 5
   fi
-  echo "Submitted jobid: ${jobid}"
-  echo
+  echo "Submitted jobid: ${jobid}" >&2
+  echo >&2
 
   printf '%s\n' "${jobid}"
 }
@@ -210,13 +210,49 @@ wait_remote_job(){
       FAILED|CANCELLED|TIMEOUT|OUT_OF_MEMORY|NODE_FAIL|PREEMPTED)
         echo "ERROR: Slurm job ended in state: ${state}"
         echo "Remote slurm output (if available):"
-        ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q \
-          "ls -1 \"${remoteJobDir}\" 2>/dev/null || true; echo; tail -n 200 \"${remoteJobDir}\"/slurm-*.out 2>/dev/null || true")"
+        ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "ls -1 \"${remoteJobDir}\" 2>/dev/null || true; echo; tail -n 200 \"${remoteJobDir}\"/slurm-*.out 2>/dev/null || true")"
         return 6
         ;;
       *) sleep 10 ;;
     esac
   done
+}
+
+download_extract_tar(){
+  local remoteHost="$1"
+  local remoteTar="$2"
+  local remoteJobDir="$3"
+  local localAbs="$4"
+  local tarName="$5"
+  local remoteBase="$6"
+  local stamp="$7"
+  local localTar localExtractDir
+
+  echo "==> Verifying remote tarball exists..." >&2
+  ssh -o BatchMode=yes "${remoteHost}" "test -f $(printf %q "${remoteTar}")" || {
+    echo "ERROR: Remote tarball not found: ${remoteTar}" >&2
+    ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "tail -n 200 \"${remoteJobDir}\"/slurm-*.out 2>/dev/null || true")" >&2
+    return 7
+  }
+
+  echo "==> Downloading tarball..." >&2
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -av --progress "${remoteHost}:$(printf %q "${remoteTar}")" "${localAbs}/" || return 8
+  else
+    scp -p "${remoteHost}:${remoteTar}" "${localAbs}/" || return 8
+  fi
+
+  echo "==> Extracting locally..." >&2
+  localTar="${localAbs%/}/${tarName}"
+  localExtractDir="${localAbs%/}/${remoteBase}_${stamp}"
+
+  mkdir -p "${localExtractDir}" || return 9
+  tar -xzf "${localTar}" -C "${localExtractDir}" || return 9
+
+  echo "==> Done." >&2
+  echo "Extracted content is under: ${localExtractDir}" >&2
+
+  printf '%s\n' "${localTar}"
 }
 
 pull_remote_dir_tar_slurm() {
@@ -266,32 +302,10 @@ pull_remote_dir_tar_slurm() {
   local jobid
   jobid="$(submit_remote_job "${remoteHost}" "${remoteJobScript}")" || return 5
 
-  wait_remote_job "${jobid}" "${remoteHost}" "${remoteJobDir}" || return 6
+  wait_remote_job "${jobid}" "${remoteHost}" "${remoteJobDir}"
 
-  echo "==> Verifying remote tarball exists..."
-  ssh -o BatchMode=yes "${remoteHost}" "test -f $(printf %q "${remoteTar}")" || {
-    echo "ERROR: Remote tarball not found: ${remoteTar}"
-    ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "tail -n 200 \"${remoteJobDir}\"/slurm-*.out 2>/dev/null || true")"
-    return 7
-  }
-
-  echo "==> Downloading tarball..."
-  local localTar localExtractDir
-  localTar="${localAbs%/}/${tarName}"
-  localExtractDir="${localAbs%/}/${remoteBase}_${stamp}"
-
-  if command -v rsync >/dev/null 2>&1; then
-    rsync -av --progress "${remoteHost}:$(printf %q "${remoteTar}")" "${localAbs}/" || return 8
-  else
-    scp -p "${remoteHost}:${remoteTar}" "${localAbs}/" || return 8
-  fi
-
-  echo "==> Extracting locally..."
-  mkdir -p "${localExtractDir}" || return 9
-  tar -xzf "${localTar}" -C "${localExtractDir}" || return 9
-
-  echo "==> Done."
-  echo "Extracted content is under: ${localExtractDir}"
+  local localTar
+  localTar="$(download_extract_tar "${remoteHost}" "${remoteTar}" "${remoteJobDir}" "${localAbs}" "${tarName}" "${remoteBase}" "${stamp}")" || return $?
 
   # Optional: delete remote directory AFTER successful download + extraction
   if [[ "${rmRemoteDir}" == "true" ]]; then
