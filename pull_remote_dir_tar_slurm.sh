@@ -125,12 +125,12 @@ write_remote_script() {
 
   echo "==> Writing sbatch script on remote..."
 
-  ssh -o BatchMode=yes "$remoteHost" \
+  ssh -o BatchMode=yes "${remoteHost}" \
     "bash -lc $(printf %q "
 set -euo pipefail
-mkdir -p \"$remoteJobDir\"
+mkdir -p \"${remoteJobDir}\"
 
-cat > \"$remoteJobScript\" <<'SBATCH'
+cat > \"${remoteJobScript}\" <<'SBATCH'
 #!/bin/bash
 #SBATCH --job-name=pullTar_${remoteBase}
 #SBATCH --output=${remoteJobOut}
@@ -149,21 +149,39 @@ PIGZ_THREADS=${pigzThreads@Q}
 
 module load pigz
 
-if [[ ! -d \"\$REMOTE_DIR\" ]]; then
-  echo \"ERROR: Remote directory does not exist: \$REMOTE_DIR\" >&2
+if [[ ! -d \"\${REMOTE_DIR}\" ]]; then
+  echo \"ERROR: Remote directory does not exist: \${REMOTE_DIR}\" >&2
   exit 10
 fi
 
 cd \"\$REMOTE_PARENT\"
 
-tar --numeric-owner -cpf - \"\$REMOTE_BASE\" | pigz -p \"\$PIGZ_THREADS\" > \"\$REMOTE_TAR\"
+tar --numeric-owner -cpf - \"\${REMOTE_BASE}\" | pigz -p \"\${PIGZ_THREADS}\" > \"\${REMOTE_TAR}\"
 
-echo \"Created: \$REMOTE_TAR\"
-ls -lh \"\$REMOTE_TAR\"
+echo \"Created: \${REMOTE_TAR}\"
+ls -lh \"\${REMOTE_TAR}\"
 SBATCH
 
-chmod +x \"$remoteJobScript\"
+chmod +x \"${remoteJobScript}\"
 ")"
+}
+
+submit_remote_job(){
+  local remoteHost=$1
+  local remoteJobScript=$2
+  local jobid
+
+  echo "==> Submitting sbatch job..."
+  # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
+  jobid="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "sbatch \"${remoteJobScript}\" | awk '{print \$4}'")")" || return 5
+  if [[ -z "${jobid}" ]]; then
+    echo "ERROR: Failed to obtain jobid from sbatch."
+    return 5
+  fi
+  echo "Submitted jobid: ${jobid}"
+  echo
+
+  printf '%s\n' "${jobid}"
 }
 
 pull_remote_dir_tar_slurm() {
@@ -210,16 +228,8 @@ pull_remote_dir_tar_slurm() {
 
   write_remote_script "${remoteHost}" "${remoteJobDir}" "${remoteJobScript}" "${remoteBase}" "${remoteJobOut}" "${slurmAccount}" "${timeLimit}" "${pigzThreads}" "${remoteDirPth}" "${remoteParent}" "${remoteTar}" || return 4
 
-  echo "==> Submitting sbatch job..."
   local jobid
-  # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
-  jobid="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "sbatch \"${remoteJobScript}\" | awk '{print \$4}'")")" || return 5
-  if [[ -z "${jobid}" ]]; then
-    echo "ERROR: Failed to obtain jobid from sbatch."
-    return 5
-  fi
-  echo "Submitted jobid: ${jobid}"
-  echo
+  jobid="$(submit_remote_job "${remoteHost}" "${remoteJobScript}")" || return 5
 
   # BatchMode=yes tells SSH not to prompt for passwords or passphrases.
   echo "==> Waiting for Slurm job to finish..."
