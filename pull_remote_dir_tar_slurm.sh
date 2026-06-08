@@ -110,44 +110,18 @@ parse_args() {
   esac
 }
 
-pull_remote_dir_tar_slurm() {
-  if (( $# > 0 )); then
-    parse_args "$@" || return $?
-  fi
-
-  local localAbs
-  localAbs="$(cd "${localDirPth}" && pwd -P)" || return 2
-
-  # Compute remoteParent + remoteBase on the remote side (avoid heredocs/newline quoting issues)
-  # Use printf %q to safely inject the path into the remote bash -lc snippet.
-  # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
-  local remoteParent remoteBase
-  remoteParent="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; dirname -- \"\$p\"'")" || return 3
-  remoteBase="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; basename -- \"\$p\"'")" || return 3
-  if [[ -z "${remoteParent}" || -z "${remoteBase}" || "${remoteBase}" == "/" ]]; then
-    echo "ERROR: Could not parse remoteDirPth safely."
-    return 3
-  fi
-
-  local stamp tarName remoteTar remoteJobDir remoteJobScript remoteJobOut
-  stamp="$(date +%Y%m%d_%H%M%S)"
-  tarName="${remoteBase}_${stamp}.tar.gz"
-  remoteTar="${remoteParent%/}/${tarName}"
-  # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
-  remoteHome="$(ssh -o BatchMode=yes "${remoteHost}" 'echo "$HOME"')"
-  remoteJobDir="${remoteHome}/pullTar_${remoteBase}_${stamp}"
-  remoteJobScript="${remoteJobDir}/make_tar.sbatch"
-  remoteJobOut="${remoteJobDir}/slurm-%j.out"
-
-  echo "Remote host      : ${remoteHost}"
-  echo "Remote directory : ${remoteDirPth}"
-  echo "Remote tarball   : ${remoteTar}"
-  echo "Local dir        : ${localAbs}"
-  echo "Slurm account    : ${slurmAccount}"
-  echo "Time limit       : ${timeLimit}"
-  echo "rmRemoteDir      : ${rmRemoteDir}"
-  echo "pigz threads     : ${pigzThreads}"
-  echo
+write_remote_script(){
+  local remoteHost="${1}"
+  local remoteJobDir="${2}"
+  local remoteJobScript="${3}"
+  local remoteBase="${4}"
+  local remoteJobOut="${5}"
+  local slurmAccount="${6}"
+  local timeLimit="${7}"
+  local pigzThreads="${8}"
+  local remoteDirPth="${9}"
+  local remoteParent="${10}"
+  local remoteTar="${11}"
 
   echo "==> Writing sbatch script on remote..."
   # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
@@ -188,7 +162,52 @@ echo \"Created: \$REMOTE_TAR\"
 ls -lh \"\$REMOTE_TAR\"
 SBATCH
 
-     chmod +x \"${remoteJobScript}\"")" || return 4
+     chmod +x \"${remoteJobScript}\"")"
+}
+
+pull_remote_dir_tar_slurm() {
+  if (( $# > 0 )); then
+    parse_args "$@" || return $?
+  fi
+
+  local localAbs
+  localAbs="$(cd "${localDirPth}" && pwd -P)" || return 2
+
+  # Compute remoteParent + remoteBase on the remote side (avoid heredocs/newline quoting issues)
+  # Use printf %q to safely inject the path into the remote bash -lc snippet.
+  # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
+  local remoteParent remoteBase
+  remoteParent="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; dirname -- \"\$p\"'")" || return 3
+  remoteBase="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; basename -- \"\$p\"'")" || return 3
+  if [[ -z "${remoteParent}" || -z "${remoteBase}" || "${remoteBase}" == "/" ]]; then
+    echo "ERROR: Could not parse remoteDirPth safely."
+    return 3
+  fi
+
+  local stamp tarName remoteTar remoteJobDir remoteJobScript remoteJobOut
+  stamp="$(date +%Y%m%d_%H%M%S)"
+  tarName="${remoteBase}_${stamp}.tar.gz"
+  remoteTar="${remoteParent%/}/${tarName}"
+  # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
+  remoteHome="$(ssh -o BatchMode=yes "${remoteHost}" 'echo "$HOME"')"
+  remoteJobDir="${remoteHome}/pullTar_${remoteBase}_${stamp}"
+  remoteJobScript="${remoteJobDir}/make_tar.sbatch"
+  remoteJobOut="${remoteJobDir}/slurm-%j.out"
+
+  echo
+  echo "Remote host         : ${remoteHost}"
+  echo "Remote directory    : ${remoteDirPth}"
+  echo "Remote tarball      : ${remoteTar}"
+  echo "Remote job directory: ${remoteJobDir}"
+  echo "Remote job script   : ${remoteJobScript}"
+  echo "Local dir           : ${localAbs}"
+  echo "Slurm account       : ${slurmAccount}"
+  echo "Time limit          : ${timeLimit}"
+  echo "rmRemoteDir         : ${rmRemoteDir}"
+  echo "pigz threads        : ${pigzThreads}"
+  echo
+
+  write_remote_script "${remoteHost}" "${remoteJobDir}" "${remoteJobScript}" "${remoteBase}" "${remoteJobOut}" "${slurmAccount}" "${timeLimit}" "${pigzThreads}" "${remoteDirPth}" "${remoteParent}" "${remoteTar}" || return 4
 
   echo "==> Submitting sbatch job..."
   local jobid
