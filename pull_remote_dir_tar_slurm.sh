@@ -347,7 +347,7 @@ pull_remote_dir_tar_slurm() {
   echo "pigz threads        : ${pigzThreads}"
   echo
 
-  #write_remote_script "${remoteHost}" "${remoteJobDir}" "${remoteJobScript}" "${remoteBase}" "${remoteJobOut}" "${slurmAccount}" "${timeLimit}" "${pigzThreads}" "${remoteDirPth}" "${remoteParent}" "${remoteTar}" || return 4
+  write_remote_script "${remoteHost}" "${remoteJobDir}" "${remoteJobScript}" "${remoteBase}" "${remoteJobOut}" "${slurmAccount}" "${timeLimit}" "${pigzThreads}" "${remoteDirPth}" "${remoteParent}" "${remoteTar}" || return 4
 
   local jobid
   jobid="$(submit_remote_job "${remoteHost}" "${remoteJobScript}")" || return 5
