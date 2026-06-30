@@ -353,8 +353,8 @@ pull_remote_dir_tar_slurm() {
   jobid="$(submit_remote_job "${remoteHost}" "${remoteJobScript}")" || return 5
   wait_remote_job "${jobid}" "${remoteHost}" "${remoteJobDir}"
 
-  #local localTar
-  #localTar="$(download_extract_tar "${remoteHost}" "${remoteTar}" "${remoteJobDir}" "${localAbs}" "${tarName}" "${remoteBase}" "${stamp}")" || return $?
+  local localTar
+  localTar="$(download_extract_tar "${remoteHost}" "${remoteTar}" "${remoteJobDir}" "${localAbs}" "${tarName}" "${remoteBase}" "${stamp}")" || return $?
 
   #cleanup "${rmRemoteDir}" "${remoteHost}" "${localTar}" "${remoteDirPth}" "${remoteTar}" "${remoteJobDir}"
 }
