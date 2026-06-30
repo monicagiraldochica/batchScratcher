@@ -148,4 +148,3 @@ syncDirCpy2MainDir() {
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
   syncDirCpy2MainDir "$@"
 fi
-
