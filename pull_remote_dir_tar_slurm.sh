@@ -237,9 +237,9 @@ download_extract_tar(){
 
   echo "==> Downloading tarball..." >&2
   if command -v rsync >/dev/null 2>&1; then
-    rsync -av --progress "${remoteHost}:$(printf %q "${remoteTar}")" "${localAbs}/" || return 8
+    rsync -av --progress "${remoteHost}:$(printf %q "${remoteTar}")" "${localAbs}/" >&2 || return 8
   else
-    scp -p "${remoteHost}:${remoteTar}" "${localAbs}/" || return 8
+    scp -p "${remoteHost}:${remoteTar}" "${localAbs}/" >&2 || return 8
   fi
 
   echo "==> Extracting locally..." >&2
