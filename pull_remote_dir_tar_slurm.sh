@@ -290,19 +290,15 @@ cleanup(){
        echo \"Deleted remote directory: \$tgt\"")" || return 10
   fi
 
-  # Optional cleanup toggles (tar/jobdir/local tar)
-  if [[ "${CLEAN_REMOTE_TAR:-0}" == "1" ]]; then
-    echo "==> Cleaning remote tarball..."
-    ssh -o BatchMode=yes "${remoteHost}" "rm -f $(printf %q "${remoteTar}")" || true
-  fi
-  if [[ "${CLEAN_REMOTE_JOBDIR:-0}" == "1" ]]; then
-    echo "==> Cleaning remote job dir..."
-    ssh -o BatchMode=yes "${remoteHost}" "rm -rf $(printf %q "${remoteJobDir}")" || true
-  fi
-  if [[ "${CLEAN_LOCAL_TAR:-0}" == "1" ]]; then
-    echo "==> Cleaning local tarball..."
-    rm -f "${localTar}" || true
-  fi
+  echo "==> Cleaning remote tarball..."
+  ssh -o BatchMode=yes "${remoteHost}" "rm -f $(printf %q "${remoteTar}")" || true
+  
+  echo "==> Cleaning remote job dir..."
+  ssh -o BatchMode=yes "${remoteHost}" "rm -rf $(printf %q "${remoteJobDir}")" || true
+  
+  echo "==> Cleaning local tarball..."
+  echo "*${localTar}*"
+  rm -f "${localTar}" || true
 }
 
 pull_remote_dir_tar_slurm() {
