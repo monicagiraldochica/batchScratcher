@@ -111,17 +111,17 @@ parse_args() {
 }
 
 write_remote_script() {
-  local remoteHost="$1"
-  local remoteJobDir="$2"
-  local remoteJobScript="$3"
-  local remoteBase="$4"
-  local remoteJobOut="$5"
-  local slurmAccount="$6"
-  local timeLimit="$7"
-  local pigzThreads="$8"
-  local remoteDirPth="$9"
-  local remoteParent="${10}"
-  local remoteTar="${11}"
+  local remoteJobDir="$1"
+  local remoteJobScript="$2"
+  local remoteBase="$3"
+  local remoteJobOut="$4"
+  local slurmAccount="$5"
+  local timeLimit="$6"
+  local pigzThreads="$7"
+  local remoteDirPth="$8"
+  local remoteParent="9"
+  local remoteTar="${10}"
+  local remoteHost="${11}"
 
   echo "==> Writing sbatch script on remote..."
 
@@ -314,11 +314,9 @@ pull_remote_dir_tar_slurm() {
   local remoteParent remoteBase
 
   if [ -z "${remoteHost}" ]; then
-    echo "Empty remoteHost" 
     remoteParent="$(bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; dirname -- \"\$p\"')" || return 3
     remoteBase="$(bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; basename -- \"\$p\"')" || return 3
   else
-    echo "Non empty remoteHost: ${remoteHost}" 
     remoteParent="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; dirname -- \"\$p\"'")" || return 3
     remoteBase="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; basename -- \"\$p\"'")" || return 3
   fi
@@ -335,10 +333,8 @@ pull_remote_dir_tar_slurm() {
 
   # BatchMode=yes tells SSH not to prompt for passwords or passphrases.
   if [ -z "${remoteHost}" ]; then
-    echo "Empty remoteHost"
     remoteHome="${HOME}"
   else
-    echo "Non empty remoteHost: ${remoteHost}"
     remoteHome="$(ssh -o BatchMode=yes "${remoteHost}" 'echo "${HOME}"')"
   fi
 
@@ -359,7 +355,7 @@ pull_remote_dir_tar_slurm() {
   echo "pigz threads        : ${pigzThreads}"
   echo
 
-  #write_remote_script "${remoteHost}" "${remoteJobDir}" "${remoteJobScript}" "${remoteBase}" "${remoteJobOut}" "${slurmAccount}" "${timeLimit}" "${pigzThreads}" "${remoteDirPth}" "${remoteParent}" "${remoteTar}" || return 4
+  write_remote_script "${remoteJobDir}" "${remoteJobScript}" "${remoteBase}" "${remoteJobOut}" "${slurmAccount}" "${timeLimit}" "${pigzThreads}" "${remoteDirPth}" "${remoteParent}" "${remoteTar}" "${remoteHost}" || return 4
 
   #local jobid
   #jobid="$(submit_remote_job "${remoteHost}" "${remoteJobScript}")" || return 5
