@@ -312,8 +312,17 @@ pull_remote_dir_tar_slurm() {
   # Use printf %q to safely inject the path into the remote bash -lc snippet.
   # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
   local remoteParent remoteBase
-  remoteParent="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; dirname -- \"\$p\"'")" || return 3
-  remoteBase="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; basename -- \"\$p\"'")" || return 3
+
+  if [ -z "${remoteHost}" ]; then
+    echo "Empty remoteHost" 
+    remoteParent="$(bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; dirname -- \"\$p\"')" || return 3
+    remoteBase="$(bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; basename -- \"\$p\"')" || return 3
+  else
+    echo "Non empty remoteHost: ${remoteHost}" 
+    remoteParent="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; dirname -- \"\$p\"'")" || return 3
+    remoteBase="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; basename -- \"\$p\"'")" || return 3
+  fi
+
   if [[ -z "${remoteParent}" || -z "${remoteBase}" || "${remoteBase}" == "/" ]]; then
     echo "ERROR: Could not parse remoteDirPth safely."
     return 3
@@ -323,8 +332,16 @@ pull_remote_dir_tar_slurm() {
   stamp="$(date +%Y%m%d_%H%M%S)"
   tarName="${remoteBase}_${stamp}.tar.gz"
   remoteTar="${remoteParent%/}/${tarName}"
-  # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
-  remoteHome="$(ssh -o BatchMode=yes "${remoteHost}" 'echo "$HOME"')"
+
+  # BatchMode=yes tells SSH not to prompt for passwords or passphrases.
+  if [ -z "${remoteHost}" ]; then
+    echo "Empty remoteHost"
+    remoteHome="${HOME}"
+  else
+    echo "Non empty remoteHost: ${remoteHost}"
+    remoteHome="$(ssh -o BatchMode=yes "${remoteHost}" 'echo "${HOME}"')"
+  fi
+
   remoteJobDir="${remoteHome}/pullTar_${remoteBase}_${stamp}"
   remoteJobScript="${remoteJobDir}/make_tar.sbatch"
   remoteJobOut="${remoteJobDir}/slurm-%j.out"
@@ -342,16 +359,16 @@ pull_remote_dir_tar_slurm() {
   echo "pigz threads        : ${pigzThreads}"
   echo
 
-  write_remote_script "${remoteHost}" "${remoteJobDir}" "${remoteJobScript}" "${remoteBase}" "${remoteJobOut}" "${slurmAccount}" "${timeLimit}" "${pigzThreads}" "${remoteDirPth}" "${remoteParent}" "${remoteTar}" || return 4
+  #write_remote_script "${remoteHost}" "${remoteJobDir}" "${remoteJobScript}" "${remoteBase}" "${remoteJobOut}" "${slurmAccount}" "${timeLimit}" "${pigzThreads}" "${remoteDirPth}" "${remoteParent}" "${remoteTar}" || return 4
 
-  local jobid
-  jobid="$(submit_remote_job "${remoteHost}" "${remoteJobScript}")" || return 5
-  wait_remote_job "${jobid}" "${remoteHost}" "${remoteJobDir}"
+  #local jobid
+  #jobid="$(submit_remote_job "${remoteHost}" "${remoteJobScript}")" || return 5
+  #wait_remote_job "${jobid}" "${remoteHost}" "${remoteJobDir}"
 
-  local localTar
-  localTar="$(download_extract_tar "${remoteHost}" "${remoteTar}" "${remoteJobDir}" "${localAbs}" "${tarName}" "${remoteBase}" "${stamp}")" || return $?
+  #local localTar
+  #localTar="$(download_extract_tar "${remoteHost}" "${remoteTar}" "${remoteJobDir}" "${localAbs}" "${tarName}" "${remoteBase}" "${stamp}")" || return $?
 
-  cleanup "${rmRemoteDir}" "${remoteHost}" "${localTar}" "${remoteDirPth}" "${remoteTar}" "${remoteJobDir}"
+  #cleanup "${rmRemoteDir}" "${remoteHost}" "${localTar}" "${remoteDirPth}" "${remoteTar}" "${remoteJobDir}"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
