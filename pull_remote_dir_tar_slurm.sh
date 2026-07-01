@@ -343,7 +343,7 @@ pull_remote_dir_tar_slurm() {
   if [ -z "${remoteHost}" ]; then
     remoteHome="${HOME}"
   else
-    remoteHome="$(ssh -o BatchMode=yes "${remoteHost}" 'echo "${HOME}"')"
+    remoteHome="$(ssh -o BatchMode=yes "${remoteHost}" 'echo "${HOME}"'  2>/dev/null)"
   fi
 
   echo "remoteHome: ${remoteHome}"
