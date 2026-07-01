@@ -179,7 +179,7 @@ submit_remote_job(){
 
   echo "==> Submitting sbatch job..." >&2
   # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
-  jobid="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "sbatch \"${remoteJobScript}\" | awk '{print \$4}'")")" || return 5
+  jobid="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "sbatch \"${remoteJobScript}\" | awk '{print \$4}'")" 2>/dev/null)" || return 5
   if [[ -z "${jobid}" ]]; then
     echo "ERROR: Failed to obtain jobid from sbatch." >&2
     return 5
@@ -199,7 +199,7 @@ wait_remote_job(){
   echo "==> Waiting for Slurm job to finish..."
   while true; do
     local state
-    state="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "sacct -j ${jobid} --format=State --noheader 2>/dev/null | head -n 1 | awk '{print \$1}'")")" || true
+    state="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "sacct -j ${jobid} --format=State --noheader 2>/dev/null | head -n 1 | awk '{print \$1}'")" 2>/dev/null)" || true
 
     if [[ -z "${state}" || "${state}" == "UNKNOWN" ]]; then
       state="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "squeue -j ${jobid} -h -o %T 2>/dev/null | head -n 1")")" || true
@@ -235,7 +235,7 @@ download_extract_tar(){
   local localTar localExtractDir
 
   echo "==> Verifying remote tarball exists..." >&2
-  ssh -o BatchMode=yes "${remoteHost}" "test -f $(printf %q "${remoteTar}")" || {
+  ssh -o BatchMode=yes "${remoteHost}" "test -f $(printf %q "${remoteTar}") 2>/dev/null" || {
     echo "ERROR: Remote tarball not found: ${remoteTar}" >&2
     ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "tail -n 200 \"${remoteJobDir}\"/slurm-*.out 2>/dev/null || true")" >&2
     return 7
@@ -343,7 +343,7 @@ pull_remote_dir_tar_slurm() {
   if [ -z "${remoteHost}" ]; then
     remoteHome="${HOME}"
   else
-    remoteHome="$(ssh -o BatchMode=yes "${remoteHost}" 'echo "${HOME}"'  2>/dev/null)"
+    remoteHome="$(ssh -o BatchMode=yes "${remoteHost}" 'echo "${HOME}"' 2>/dev/null)"
   fi
 
   remoteJobDir="${remoteHome}/pullTar_${remoteBase}_${stamp}"
