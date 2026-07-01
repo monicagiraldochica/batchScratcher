@@ -321,9 +321,10 @@ pull_remote_dir_tar_slurm() {
 
   echo "remoteDirPth: ${remoteDirPth}"
 
-  if [ -z "${remoteHost}" ]; then    
-    remoteParent="$(bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; dirname -- \"\$p\"')" || return 3
-    remoteBase="$(bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; basename -- \"\$p\"')" || return 3
+  if [ -z "${remoteHost}" ]; then
+    local p="${remoteDirPth%/}"
+    remoteParent="$(dirname -- "$p")" || return 3
+    remoteBase="$(basename -- "$p")" || return 3
   else
     remoteParent="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; dirname -- \"\$p\"'")" || return 3
     remoteBase="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; basename -- \"\$p\"'")" || return 3
