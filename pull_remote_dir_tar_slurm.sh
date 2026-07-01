@@ -123,14 +123,26 @@ write_remote_script() {
   local remoteTar="${10}"
   local remoteHost="${11}"
 
-  echo "==> Writing sbatch script on remote..."
+  echo "remoteJobDir: *${remoteJobDir}*"
+  echo "remoteJobScript: *${remoteJobScript}*"
+  echo "remoteBase: *${remoteBase}*"
+  echo "remoteJobOut: *${remoteJobOut}*"
+  echo "slurmAccount: *${slurmAccount}*"
+  echo "timeLimit: *${timeLimit}*"
+  echo "pigzThreads: *${pigzThreads}*"
+  echo "remoteDirPth: *${remoteDirPth}*"
+  echo "remoteParent: *${remoteParent}*"
+  echo "remoteTar: *${remoteTar}*"
+  echo "remoteHost: *${remoteHost}*"
 
-  local cmd
-  cmd=$(printf %q "
-set -euo pipefail
-mkdir -p \"${remoteJobDir}\"
+  #echo "==> Writing sbatch script on remote..."
 
-cat > \"${remoteJobScript}\" <<'SBATCH'
+  #local cmd
+  #cmd=$(printf %q "
+#set -euo pipefail
+#mkdir -p \"${remoteJobDir}\"
+
+#cat > \"${remoteJobScript}\" <<'SBATCH'
 #!/bin/bash
 #SBATCH --job-name=pullTar_${remoteBase}
 #SBATCH --output=${remoteJobOut}
@@ -139,37 +151,37 @@ cat > \"${remoteJobScript}\" <<'SBATCH'
 #SBATCH --cpus-per-task=${pigzThreads}
 #SBATCH --mem=4G
 
-set -euo pipefail
+#set -euo pipefail
 
-REMOTE_DIR=${remoteDirPth@Q}
-REMOTE_PARENT=${remoteParent@Q}
-REMOTE_BASE=${remoteBase@Q}
-REMOTE_TAR=${remoteTar@Q}
-PIGZ_THREADS=${pigzThreads@Q}
+#REMOTE_DIR=${remoteDirPth@Q}
+#REMOTE_PARENT=${remoteParent@Q}
+#REMOTE_BASE=${remoteBase@Q}
+#REMOTE_TAR=${remoteTar@Q}
+#PIGZ_THREADS=${pigzThreads@Q}
 
-module load pigz
+#module load pigz
 
-if [[ ! -d \"\${REMOTE_DIR}\" ]]; then
-  echo \"ERROR: Remote directory does not exist: \${REMOTE_DIR}\" >&2
-  exit 10
-fi
+#if [[ ! -d \"\${REMOTE_DIR}\" ]]; then
+#  echo \"ERROR: Remote directory does not exist: \${REMOTE_DIR}\" >&2
+#  exit 10
+#fi
 
-cd \"\$REMOTE_PARENT\"
+#cd \"\$REMOTE_PARENT\"
 
-tar --numeric-owner -cpf - \"\${REMOTE_BASE}\" | pigz -p \"\${PIGZ_THREADS}\" > \"\${REMOTE_TAR}\"
+#tar --numeric-owner -cpf - \"\${REMOTE_BASE}\" | pigz -p \"\${PIGZ_THREADS}\" > \"\${REMOTE_TAR}\"
 
-echo \"Created: \${REMOTE_TAR}\"
-ls -lh \"\${REMOTE_TAR}\"
-SBATCH
+#echo \"Created: \${REMOTE_TAR}\"
+#ls -lh \"\${REMOTE_TAR}\"
+#SBATCH
 
-chmod +x \"${remoteJobScript}\"
-")
+#chmod +x \"${remoteJobScript}\"
+#")
 
-  if [[ -n "${remoteHost}" ]]; then
-    ssh -o BatchMode=yes "${remoteHost}" "bash -lc ${cmd}"  2>/dev/null
-  else
-    bash -lc "${cmd}"
-  fi
+#  if [[ -n "${remoteHost}" ]]; then
+#    ssh -o BatchMode=yes "${remoteHost}" "bash -lc ${cmd}"  2>/dev/null
+#  else
+#    bash -lc "${cmd}"
+#  fi
 }
 
 submit_remote_job(){
@@ -363,7 +375,7 @@ pull_remote_dir_tar_slurm() {
   echo "pigz threads        : ${pigzThreads}"
   echo
 
-  #write_remote_script "${remoteJobDir}" "${remoteJobScript}" "${remoteBase}" "${remoteJobOut}" "${slurmAccount}" "${timeLimit}" "${pigzThreads}" "${remoteDirPth}" "${remoteParent}" "${remoteTar}" "${remoteHost}" || return 4
+  write_remote_script "${remoteJobDir}" "${remoteJobScript}" "${remoteBase}" "${remoteJobOut}" "${slurmAccount}" "${timeLimit}" "${pigzThreads}" "${remoteDirPth}" "${remoteParent}" "${remoteTar}" "${remoteHost}" || return 4
 
   #local jobid
   #jobid="$(submit_remote_job "${remoteHost}" "${remoteJobScript}")" || return 5
