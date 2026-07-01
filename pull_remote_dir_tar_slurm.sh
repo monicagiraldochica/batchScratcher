@@ -319,7 +319,9 @@ pull_remote_dir_tar_slurm() {
   # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
   local remoteParent remoteBase
 
-  if [ -z "${remoteHost}" ]; then
+  echo "remoteDirPth: ${remoteDirPth}"
+
+  if [ -z "${remoteHost}" ]; then    
     remoteParent="$(bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; dirname -- \"\$p\"')" || return 3
     remoteBase="$(bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; basename -- \"\$p\"')" || return 3
   else
@@ -327,39 +329,42 @@ pull_remote_dir_tar_slurm() {
     remoteBase="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; basename -- \"\$p\"'")" || return 3
   fi
 
+  echo "remoteParent: ${remoteParent}"
+  echo "remoteBase: ${remoteBase}"
+
   if [[ -z "${remoteParent}" || -z "${remoteBase}" || "${remoteBase}" == "/" ]]; then
     echo "ERROR: Could not parse remoteDirPth safely."
     return 3
   fi
 
-  local stamp tarName remoteTar remoteJobDir remoteJobScript remoteJobOut
-  stamp="$(date +%Y%m%d_%H%M%S)"
-  tarName="${remoteBase}_${stamp}.tar.gz"
-  remoteTar="${remoteParent%/}/${tarName}"
+  #local stamp tarName remoteTar remoteJobDir remoteJobScript remoteJobOut
+  #stamp="$(date +%Y%m%d_%H%M%S)"
+  #tarName="${remoteBase}_${stamp}.tar.gz"
+  #remoteTar="${remoteParent%/}/${tarName}"
 
   # BatchMode=yes tells SSH not to prompt for passwords or passphrases.
-  if [ -z "${remoteHost}" ]; then
-    remoteHome="${HOME}"
-  else
-    remoteHome="$(ssh -o BatchMode=yes "${remoteHost}" 'echo "${HOME}"')"
-  fi
+  #if [ -z "${remoteHost}" ]; then
+  #  remoteHome="${HOME}"
+  #else
+  #  remoteHome="$(ssh -o BatchMode=yes "${remoteHost}" 'echo "${HOME}"')"
+  #fi
 
-  remoteJobDir="${remoteHome}/pullTar_${remoteBase}_${stamp}"
-  remoteJobScript="${remoteJobDir}/make_tar.sbatch"
-  remoteJobOut="${remoteJobDir}/slurm-%j.out"
+  #remoteJobDir="${remoteHome}/pullTar_${remoteBase}_${stamp}"
+  #remoteJobScript="${remoteJobDir}/make_tar.sbatch"
+  #remoteJobOut="${remoteJobDir}/slurm-%j.out"
 
-  echo
-  echo "Remote host         : ${remoteHost}"
-  echo "Remote directory    : ${remoteDirPth}"
-  echo "Remote tarball      : ${remoteTar}"
-  echo "Remote job directory: ${remoteJobDir}"
-  echo "Remote job script   : ${remoteJobScript}"
-  echo "Local dir           : ${localAbs}"
-  echo "Slurm account       : ${slurmAccount}"
-  echo "Time limit          : ${timeLimit}"
-  echo "rmRemoteDir         : ${rmRemoteDir}"
-  echo "pigz threads        : ${pigzThreads}"
-  echo
+  #echo
+  #echo "Remote host         : ${remoteHost}"
+  #echo "Remote directory    : ${remoteDirPth}"
+  #echo "Remote tarball      : ${remoteTar}"
+  #echo "Remote job directory: ${remoteJobDir}"
+  #echo "Remote job script   : ${remoteJobScript}"
+  #echo "Local dir           : ${localAbs}"
+  #echo "Slurm account       : ${slurmAccount}"
+  #echo "Time limit          : ${timeLimit}"
+  #echo "rmRemoteDir         : ${rmRemoteDir}"
+  #echo "pigz threads        : ${pigzThreads}"
+  #echo
 
   #write_remote_script "${remoteJobDir}" "${remoteJobScript}" "${remoteBase}" "${remoteJobOut}" "${slurmAccount}" "${timeLimit}" "${pigzThreads}" "${remoteDirPth}" "${remoteParent}" "${remoteTar}" "${remoteHost}" || return 4
 
