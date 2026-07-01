@@ -346,11 +346,13 @@ pull_remote_dir_tar_slurm() {
     remoteHome="$(ssh -o BatchMode=yes "${remoteHost}" 'echo "${HOME}"'  2>/dev/null)"
   fi
 
-  echo "remoteHome: ${remoteHome}"
+  remoteJobDir="${remoteHome}/pullTar_${remoteBase}_${stamp}"
+  remoteJobScript="${remoteJobDir}/make_tar.sbatch"
+  remoteJobOut="${remoteJobDir}/slurm-%j.out"
 
-  #remoteJobDir="${remoteHome}/pullTar_${remoteBase}_${stamp}"
-  #remoteJobScript="${remoteJobDir}/make_tar.sbatch"
-  #remoteJobOut="${remoteJobDir}/slurm-%j.out"
+  echo "remoteJobDir: ${remoteJobDir}"
+  echo "remoteJobScript: ${remoteJobScript}"
+  echo "remoteJobOut: ${remoteJobOut}"
 
   #echo
   #echo "Remote host         : ${remoteHost}"
