@@ -119,7 +119,7 @@ write_remote_script() {
   local timeLimit="$6"
   local pigzThreads="$7"
   local remoteDirPth="$8"
-  local remoteParent="9"
+  local remoteParent="$9"
   local remoteTar="${10}"
   local remoteHost="${11}"
 
