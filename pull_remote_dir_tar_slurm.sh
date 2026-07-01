@@ -125,8 +125,10 @@ write_remote_script() {
 
   echo "==> Writing sbatch script on remote..."
 
-  ssh -o BatchMode=yes "${remoteHost}" \
-    "bash -lc $(printf %q "
+  local cmd
+  #ssh -o BatchMode=yes "${remoteHost}" \
+  #  "bash -lc $(printf %q "
+  cmd=$(printf %q "
 set -euo pipefail
 mkdir -p \"${remoteJobDir}\"
 
@@ -163,7 +165,13 @@ ls -lh \"\${REMOTE_TAR}\"
 SBATCH
 
 chmod +x \"${remoteJobScript}\"
-")"
+")
+
+  if [[ -n "${remoteHost}" ]]; then
+    ssh -o BatchMode=yes "${remoteHost}" "bash -lc ${cmd}"
+  else
+    bash -lc "${cmd}"
+  fi
 }
 
 submit_remote_job(){
