@@ -367,12 +367,13 @@ pull_remote_dir_tar_slurm() {
 
   local jobid
   jobid="$(submit_remote_job "${remoteHost}" "${remoteJobScript}")" || return 5
-  wait_remote_job "${jobid}" "${remoteHost}" "${remoteJobDir}"
+  echo "submitted *${jobid}*"
+  #wait_remote_job "${jobid}" "${remoteHost}" "${remoteJobDir}"
 
-  local localTar
-  localTar="$(download_extract_tar "${remoteHost}" "${remoteTar}" "${remoteJobDir}" "${localAbs}" "${tarName}" "${remoteBase}" "${stamp}")" || return $?
+  #local localTar
+  #localTar="$(download_extract_tar "${remoteHost}" "${remoteTar}" "${remoteJobDir}" "${localAbs}" "${tarName}" "${remoteBase}" "${stamp}")" || return $?
 
-  cleanup "${rmRemoteDir}" "${remoteHost}" "${localTar}" "${remoteDirPth}" "${remoteTar}" "${remoteJobDir}"
+  #cleanup "${rmRemoteDir}" "${remoteHost}" "${localTar}" "${remoteDirPth}" "${remoteTar}" "${remoteJobDir}"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
