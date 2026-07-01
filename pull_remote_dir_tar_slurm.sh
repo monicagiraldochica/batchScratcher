@@ -327,7 +327,7 @@ pull_remote_dir_tar_slurm() {
     remoteBase="$(basename -- "$p")" || return 3
   else
     read -r remoteParent remoteBase < <(
-        ssh -o BatchMode=yes "$remoteHost" "bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; printf \"%s %s\n\" \"\$(dirname -- \"\$p\")\" \"\$(basename -- \"\$p\")\"'"
+        ssh -o BatchMode=yes "$remoteHost" "bash -lc 'p=$(printf %q "${remoteDirPth}"); p=\${p%/}; printf \"%s %s\n\" \"\$(dirname -- \"\$p\")\" \"\$(basename -- \"\$p\")\"'" 2>/dev/null
       ) || return 3
   fi
 
