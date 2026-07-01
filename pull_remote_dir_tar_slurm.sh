@@ -350,24 +350,20 @@ pull_remote_dir_tar_slurm() {
   remoteJobScript="${remoteJobDir}/make_tar.sbatch"
   remoteJobOut="${remoteJobDir}/slurm-%j.out"
 
-  echo "remoteJobDir: ${remoteJobDir}"
-  echo "remoteJobScript: ${remoteJobScript}"
-  echo "remoteJobOut: ${remoteJobOut}"
+  echo
+  echo "Remote host         : ${remoteHost}"
+  echo "Remote directory    : ${remoteDirPth}"
+  echo "Remote tarball      : ${remoteTar}"
+  echo "Remote job directory: ${remoteJobDir}"
+  echo "Remote job script   : ${remoteJobScript}"
+  echo "Local dir           : ${localAbs}"
+  echo "Slurm account       : ${slurmAccount}"
+  echo "Time limit          : ${timeLimit}"
+  echo "rmRemoteDir         : ${rmRemoteDir}"
+  echo "pigz threads        : ${pigzThreads}"
+  echo
 
-  #echo
-  #echo "Remote host         : ${remoteHost}"
-  #echo "Remote directory    : ${remoteDirPth}"
-  #echo "Remote tarball      : ${remoteTar}"
-  #echo "Remote job directory: ${remoteJobDir}"
-  #echo "Remote job script   : ${remoteJobScript}"
-  #echo "Local dir           : ${localAbs}"
-  #echo "Slurm account       : ${slurmAccount}"
-  #echo "Time limit          : ${timeLimit}"
-  #echo "rmRemoteDir         : ${rmRemoteDir}"
-  #echo "pigz threads        : ${pigzThreads}"
-  #echo
-
-  #write_remote_script "${remoteJobDir}" "${remoteJobScript}" "${remoteBase}" "${remoteJobOut}" "${slurmAccount}" "${timeLimit}" "${pigzThreads}" "${remoteDirPth}" "${remoteParent}" "${remoteTar}" "${remoteHost}" || return 4
+  write_remote_script "${remoteJobDir}" "${remoteJobScript}" "${remoteBase}" "${remoteJobOut}" "${slurmAccount}" "${timeLimit}" "${pigzThreads}" "${remoteDirPth}" "${remoteParent}" "${remoteTar}" "${remoteHost}" || return 4
 
   #local jobid
   #jobid="$(submit_remote_job "${remoteHost}" "${remoteJobScript}")" || return 5
