@@ -123,22 +123,10 @@ write_remote_script() {
   local remoteTar="${10}"
   local remoteHost="${11}"
 
-  echo "remoteJobDir: *${remoteJobDir}*"
-  echo "remoteJobScript: *${remoteJobScript}*"
-  echo "remoteBase: *${remoteBase}*"
-  echo "remoteJobOut: *${remoteJobOut}*"
-  echo "slurmAccount: *${slurmAccount}*"
-  echo "timeLimit: *${timeLimit}*"
-  echo "pigzThreads: *${pigzThreads}*"
-  echo "remoteDirPth: *${remoteDirPth}*"
-  echo "remoteParent: *${remoteParent}*"
-  echo "remoteTar: *${remoteTar}*"
-  echo "remoteHost: *${remoteHost}*"
-
   echo "==> Writing sbatch script on remote..."
 
-  local cmd
-  cmd=$(printf %q "
+  local script
+  script="
 set -euo pipefail
 mkdir -p \"${remoteJobDir}\"
 
@@ -175,13 +163,12 @@ ls -lh \"\${REMOTE_TAR}\"
 SBATCH
 
 chmod +x \"${remoteJobScript}\"
-")
+"
 
-  echo "cmd: *${cmd}*"
   if [[ -n "${remoteHost}" ]]; then
-    ssh -o BatchMode=yes "${remoteHost}" "bash -lc ${cmd}"  2>/dev/null
+    ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf '%q' "${script}")"  2>/dev/null
   else
-    bash -lc "${cmd}"
+    bash -lc "${script}"
   fi
 }
 
