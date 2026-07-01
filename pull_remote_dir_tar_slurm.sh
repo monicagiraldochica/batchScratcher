@@ -319,8 +319,6 @@ pull_remote_dir_tar_slurm() {
   # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
   local remoteParent remoteBase
 
-  echo "remoteDirPth: ${remoteDirPth}"
-
   if [[ -z "${remoteHost}" ]]; then
     local p="${remoteDirPth%/}"
     remoteParent="$(dirname -- "$p")" || return 3
@@ -341,15 +339,14 @@ pull_remote_dir_tar_slurm() {
   tarName="${remoteBase}_${stamp}.tar.gz"
   remoteTar="${remoteParent%/}/${tarName}"
 
-  echo "tarName: ${tarName}"
-  echo "remoteTar: ${remoteTar}"
-
   # BatchMode=yes tells SSH not to prompt for passwords or passphrases.
-  #if [ -z "${remoteHost}" ]; then
-  #  remoteHome="${HOME}"
-  #else
-  #  remoteHome="$(ssh -o BatchMode=yes "${remoteHost}" 'echo "${HOME}"')"
-  #fi
+  if [ -z "${remoteHost}" ]; then
+    remoteHome="${HOME}"
+  else
+    remoteHome="$(ssh -o BatchMode=yes "${remoteHost}" 'echo "${HOME}"')"
+  fi
+
+  echo "remoteHome: ${remoteHome}"
 
   #remoteJobDir="${remoteHome}/pullTar_${remoteBase}_${stamp}"
   #remoteJobScript="${remoteJobDir}/make_tar.sbatch"
