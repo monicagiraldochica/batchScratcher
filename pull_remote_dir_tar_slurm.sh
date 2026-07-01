@@ -135,14 +135,14 @@ write_remote_script() {
   echo "remoteTar: *${remoteTar}*"
   echo "remoteHost: *${remoteHost}*"
 
-  #echo "==> Writing sbatch script on remote..."
+  echo "==> Writing sbatch script on remote..."
 
-  #local cmd
-  #cmd=$(printf %q "
-#set -euo pipefail
-#mkdir -p \"${remoteJobDir}\"
+  local cmd
+  cmd=$(printf %q "
+set -euo pipefail
+mkdir -p \"${remoteJobDir}\"
 
-#cat > \"${remoteJobScript}\" <<'SBATCH'
+cat > \"${remoteJobScript}\" <<'SBATCH'
 #!/bin/bash
 #SBATCH --job-name=pullTar_${remoteBase}
 #SBATCH --output=${remoteJobOut}
@@ -151,32 +151,33 @@ write_remote_script() {
 #SBATCH --cpus-per-task=${pigzThreads}
 #SBATCH --mem=4G
 
-#set -euo pipefail
+set -euo pipefail
 
-#REMOTE_DIR=${remoteDirPth@Q}
-#REMOTE_PARENT=${remoteParent@Q}
-#REMOTE_BASE=${remoteBase@Q}
-#REMOTE_TAR=${remoteTar@Q}
-#PIGZ_THREADS=${pigzThreads@Q}
+REMOTE_DIR=${remoteDirPth@Q}
+REMOTE_PARENT=${remoteParent@Q}
+REMOTE_BASE=${remoteBase@Q}
+REMOTE_TAR=${remoteTar@Q}
+PIGZ_THREADS=${pigzThreads@Q}
 
-#module load pigz
+module load pigz
 
-#if [[ ! -d \"\${REMOTE_DIR}\" ]]; then
-#  echo \"ERROR: Remote directory does not exist: \${REMOTE_DIR}\" >&2
-#  exit 10
-#fi
+if [[ ! -d \"\${REMOTE_DIR}\" ]]; then
+  echo \"ERROR: Remote directory does not exist: \${REMOTE_DIR}\" >&2
+  exit 10
+fi
 
-#cd \"\$REMOTE_PARENT\"
+cd \"\$REMOTE_PARENT\"
 
-#tar --numeric-owner -cpf - \"\${REMOTE_BASE}\" | pigz -p \"\${PIGZ_THREADS}\" > \"\${REMOTE_TAR}\"
+tar --numeric-owner -cpf - \"\${REMOTE_BASE}\" | pigz -p \"\${PIGZ_THREADS}\" > \"\${REMOTE_TAR}\"
 
-#echo \"Created: \${REMOTE_TAR}\"
-#ls -lh \"\${REMOTE_TAR}\"
-#SBATCH
+echo \"Created: \${REMOTE_TAR}\"
+ls -lh \"\${REMOTE_TAR}\"
+SBATCH
 
-#chmod +x \"${remoteJobScript}\"
-#")
+chmod +x \"${remoteJobScript}\"
+")
 
+echo "cmd: *${cmd}*"
 #  if [[ -n "${remoteHost}" ]]; then
 #    ssh -o BatchMode=yes "${remoteHost}" "bash -lc ${cmd}"  2>/dev/null
 #  else
