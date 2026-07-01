@@ -68,7 +68,7 @@ parse_args() {
   # === VALIDATION ===
 
   # Required fields
-  if [[ -z "${remoteHost}" || -z "${remoteDirPth}" || -z "${localDirPth}" || -z "${slurmAccount}" || -z "${timeLimit}" || -z "${rmRemoteDir}" ]]; then
+  if [[ -z "${remoteDirPth}" || -z "${localDirPth}" || -z "${slurmAccount}" || -z "${timeLimit}" || -z "${rmRemoteDir}" ]]; then
     echo "ERROR: Missing required arguments."
     echo "Required:"
     echo "  --host=<user@host>"
