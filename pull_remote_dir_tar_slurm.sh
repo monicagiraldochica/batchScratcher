@@ -177,12 +177,12 @@ SBATCH
 chmod +x \"${remoteJobScript}\"
 ")
 
-echo "cmd: *${cmd}*"
-#  if [[ -n "${remoteHost}" ]]; then
-#    ssh -o BatchMode=yes "${remoteHost}" "bash -lc ${cmd}"  2>/dev/null
-#  else
-#    bash -lc "${cmd}"
-#  fi
+  echo "cmd: *${cmd}*"
+  if [[ -n "${remoteHost}" ]]; then
+    ssh -o BatchMode=yes "${remoteHost}" "bash -lc ${cmd}"  2>/dev/null
+  else
+    bash -lc "${cmd}"
+  fi
 }
 
 submit_remote_job(){
