@@ -126,8 +126,6 @@ write_remote_script() {
   echo "==> Writing sbatch script on remote..."
 
   local cmd
-  #ssh -o BatchMode=yes "${remoteHost}" \
-  #  "bash -lc $(printf %q "
   cmd=$(printf %q "
 set -euo pipefail
 mkdir -p \"${remoteJobDir}\"
