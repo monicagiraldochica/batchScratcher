@@ -331,18 +331,18 @@ pull_remote_dir_tar_slurm() {
       ) || return 3
   fi
 
-  echo "remoteParent: ${remoteParent}"
-  echo "remoteBase: ${remoteBase}"
-
   if [[ -z "${remoteParent}" || -z "${remoteBase}" || "${remoteBase}" == "/" ]]; then
     echo "ERROR: Could not parse remoteDirPth safely."
     return 3
   fi
 
   #local stamp tarName remoteTar remoteJobDir remoteJobScript remoteJobOut
-  #stamp="$(date +%Y%m%d_%H%M%S)"
-  #tarName="${remoteBase}_${stamp}.tar.gz"
-  #remoteTar="${remoteParent%/}/${tarName}"
+  stamp="$(date +%Y%m%d_%H%M%S)"
+  tarName="${remoteBase}_${stamp}.tar.gz"
+  remoteTar="${remoteParent%/}/${tarName}"
+
+  echo "tarName: ${tarName}"
+  echo "remoteTar: ${remoteTar}"
 
   # BatchMode=yes tells SSH not to prompt for passwords or passphrases.
   #if [ -z "${remoteHost}" ]; then
