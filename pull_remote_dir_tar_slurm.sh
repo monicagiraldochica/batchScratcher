@@ -297,7 +297,6 @@ cleanup(){
   ssh -o BatchMode=yes "${remoteHost}" "rm -rf $(printf %q "${remoteJobDir}")" || true
   
   echo "==> Cleaning local tarball..."
-  echo "*${localTar}*"
   rm -f "${localTar}" || true
 }
 
