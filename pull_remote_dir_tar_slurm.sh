@@ -166,7 +166,7 @@ chmod +x \"${remoteJobScript}\"
 ")
 
   if [[ -n "${remoteHost}" ]]; then
-    ssh -o BatchMode=yes "${remoteHost}" "bash -lc ${cmd}"
+    ssh -o BatchMode=yes "${remoteHost}" "bash -lc ${cmd}"  2>/dev/null
   else
     bash -lc "${cmd}"
   fi
