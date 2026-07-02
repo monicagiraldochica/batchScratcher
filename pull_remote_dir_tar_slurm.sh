@@ -237,9 +237,9 @@ download_extract_tar(){
   local localTar localExtractDir
 
   echo "==> Verifying remote tarball exists..." >&2
-  ssh -o BatchMode=yes "${remoteHost}" "test -f $(printf %q "${remoteTar}") 2>/dev/null" || {
+  ssh -o BatchMode=yes "${remoteHost}" "test -f $(printf %q "${remoteTar}")" 2>/dev/null || {
     echo "ERROR: Remote tarball not found: ${remoteTar}" >&2
-    ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "tail -n 200 \"${remoteJobDir}\"/slurm-*.out 2>/dev/null || true")" >&2
+    ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "tail -n 200 \"${remoteJobDir}\"/slurm-*.out || true")"  2>/dev/null
     return 7
   }
 
@@ -295,14 +295,14 @@ cleanup(){
          exit 12
        fi
        rm -rf -- \"\$tgt\"
-       echo \"Deleted remote directory: \$tgt\"")" || return 10
+       echo \"Deleted remote directory: \$tgt\"")" 2>/dev/null || return 10
   fi
 
   echo "==> Cleaning remote tarball..."
-  ssh -o BatchMode=yes "${remoteHost}" "rm -f $(printf %q "${remoteTar}")" || true
+  ssh -o BatchMode=yes "${remoteHost}" "rm -f $(printf %q "${remoteTar}")" 2>/dev/null || true
   
   echo "==> Cleaning remote job dir..."
-  ssh -o BatchMode=yes "${remoteHost}" "rm -rf $(printf %q "${remoteJobDir}")" || true
+  ssh -o BatchMode=yes "${remoteHost}" "rm -rf $(printf %q "${remoteJobDir}")" 2>/dev/null || true
   
   echo "==> Cleaning local tarball..."
   rm -f "${localTar}" || true
@@ -375,7 +375,7 @@ pull_remote_dir_tar_slurm() {
   local localTar
   localTar="$(download_extract_tar "${remoteHost}" "${remoteTar}" "${remoteJobDir}" "${localAbs}" "${tarName}" "${remoteBase}" "${stamp}")" || return $?
 
-  #cleanup "${rmRemoteDir}" "${remoteHost}" "${localTar}" "${remoteDirPth}" "${remoteTar}" "${remoteJobDir}"
+  cleanup "${rmRemoteDir}" "${remoteHost}" "${localTar}" "${remoteDirPth}" "${remoteTar}" "${remoteJobDir}"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
