@@ -173,13 +173,15 @@ chmod +x \"${remoteJobScript}\"
 }
 
 submit_remote_job(){
-  local remoteHost="$1"
-  local remoteJobScript="$2"
+  local remoteJobScript="$1"
+  local remoteHost="$2"
   local jobid
 
   echo "==> Submitting sbatch job..." >&2
+  
   # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
   jobid="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "sbatch \"${remoteJobScript}\" | awk '{print \$4}'")" 2>/dev/null)" || return 5
+
   if [[ -z "${jobid}" ]]; then
     echo "ERROR: Failed to obtain jobid from sbatch." >&2
     return 5
@@ -366,7 +368,7 @@ pull_remote_dir_tar_slurm() {
   write_remote_script "${remoteJobDir}" "${remoteJobScript}" "${remoteBase}" "${remoteJobOut}" "${slurmAccount}" "${timeLimit}" "${pigzThreads}" "${remoteDirPth}" "${remoteParent}" "${remoteTar}" "${remoteHost}" || return 4
 
   local jobid
-  jobid="$(submit_remote_job "${remoteHost}" "${remoteJobScript}")" || return 5
+  jobid="$(submit_remote_job "${remoteJobScript}" "${remoteHost}")" || return 5
   echo "submitted *${jobid}*"
   #wait_remote_job "${jobid}" "${remoteHost}" "${remoteJobDir}"
 
