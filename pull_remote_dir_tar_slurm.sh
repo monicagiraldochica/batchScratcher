@@ -272,41 +272,48 @@ cleanup(){
   local remoteTar="$5"
   local remoteJobDir="$6"
 
-  if [[ "${rmRemoteDir}" == "true" ]]; then
-    echo "==> rmRemoteDir=true: preparing to delete remote directory..."
+  echo "rmRemoteDir: ${rmRemoteDir}"
+  echo "remoteHost: ${remoteHost}"
+  echo "localTar: ${localTar}"
+  echo "remoteDirPth: ${remoteDirPth}"
+  echo "remoteTar: ${remoteTar}"
+  echo "remoteJobDir: ${remoteJobDir}"
+
+  #if [[ "${rmRemoteDir}" == "true" ]]; then
+  #  echo "==> rmRemoteDir=true: preparing to delete remote directory..."
 
     # Safety: refuse to delete obviously dangerous targets
     # (You can extend this list for your environment.)
-    local remoteToDelete="${remoteDirPth%/}"
-    if [[ -z "${remoteToDelete}" || "${remoteToDelete}" == "/" ]]; then
-      echo "ERROR: Refusing to delete remote directory: '${remoteToDelete}'"
-      return 10
-    fi
+  #  local remoteToDelete="${remoteDirPth%/}"
+  #  if [[ -z "${remoteToDelete}" || "${remoteToDelete}" == "/" ]]; then
+  #    echo "ERROR: Refusing to delete remote directory: '${remoteToDelete}'"
+  #    return 10
+  #  fi
 
     # Remote-side safety checks: must exist and be a directory, and not be the parent itself.
-    ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q \
-      "set -euo pipefail
-       tgt=\"${remoteToDelete}\"
-       if [[ ! -d \"\$tgt\" ]]; then
-         echo \"ERROR: Remote delete target is not a directory (or no longer exists): \$tgt\" >&2
-         exit 11
-       fi
-       if [[ \"\$tgt\" == \"/\" ]]; then
-         echo \"ERROR: Refusing to delete '/'\" >&2
-         exit 12
-       fi
-       rm -rf -- \"\$tgt\"
-       echo \"Deleted remote directory: \$tgt\"")" 2>/dev/null || return 10
-  fi
+  #  ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q \
+  #    "set -euo pipefail
+  #     tgt=\"${remoteToDelete}\"
+  #     if [[ ! -d \"\$tgt\" ]]; then
+  #       echo \"ERROR: Remote delete target is not a directory (or no longer exists): \$tgt\" >&2
+  #       exit 11
+  #     fi
+  #     if [[ \"\$tgt\" == \"/\" ]]; then
+  #       echo \"ERROR: Refusing to delete '/'\" >&2
+  #       exit 12
+  #     fi
+  #     rm -rf -- \"\$tgt\"
+  #     echo \"Deleted remote directory: \$tgt\"")" 2>/dev/null || return 10
+  #fi
 
-  echo "==> Cleaning remote tarball..."
-  ssh -o BatchMode=yes "${remoteHost}" "rm -f $(printf %q "${remoteTar}")" 2>/dev/null || true
+  #echo "==> Cleaning remote tarball..."
+  #ssh -o BatchMode=yes "${remoteHost}" "rm -f $(printf %q "${remoteTar}")" 2>/dev/null || true
   
-  echo "==> Cleaning remote job dir..."
-  ssh -o BatchMode=yes "${remoteHost}" "rm -rf $(printf %q "${remoteJobDir}")" 2>/dev/null || true
+  #echo "==> Cleaning remote job dir..."
+  #ssh -o BatchMode=yes "${remoteHost}" "rm -rf $(printf %q "${remoteJobDir}")" 2>/dev/null || true
   
-  echo "==> Cleaning local tarball..."
-  rm -f "${localTar}" || true
+  #echo "==> Cleaning local tarball..."
+  #rm -f "${localTar}" || true
 }
 
 pull_remote_dir_tar_slurm() {
