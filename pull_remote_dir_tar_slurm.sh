@@ -178,7 +178,7 @@ submit_remote_job(){
   local jobid
 
   echo "==> Submitting sbatch job..." >&2
-  
+
   # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
   jobid="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "sbatch \"${remoteJobScript}\" | awk '{print \$4}'")" 2>/dev/null)" || return 5
 
@@ -369,11 +369,11 @@ pull_remote_dir_tar_slurm() {
 
   local jobid
   jobid="$(submit_remote_job "${remoteJobScript}" "${remoteHost}")" || return 5
-  echo "submitted *${jobid}*"
-  #wait_remote_job "${jobid}" "${remoteHost}" "${remoteJobDir}"
+  echo "submitted *${jobid}*" ## Re-start testing in cluster from here
+  wait_remote_job "${jobid}" "${remoteHost}" "${remoteJobDir}"
 
-  #local localTar
-  #localTar="$(download_extract_tar "${remoteHost}" "${remoteTar}" "${remoteJobDir}" "${localAbs}" "${tarName}" "${remoteBase}" "${stamp}")" || return $?
+  local localTar
+  localTar="$(download_extract_tar "${remoteHost}" "${remoteTar}" "${remoteJobDir}" "${localAbs}" "${tarName}" "${remoteBase}" "${stamp}")" || return $?
 
   #cleanup "${rmRemoteDir}" "${remoteHost}" "${localTar}" "${remoteDirPth}" "${remoteTar}" "${remoteJobDir}"
 }
