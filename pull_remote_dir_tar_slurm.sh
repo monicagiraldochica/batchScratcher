@@ -206,6 +206,7 @@ wait_remote_job(){
     if [[ -z "${state}" || "${state}" == "UNKNOWN" ]]; then
       state="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "squeue -j ${jobid} -h -o %T 2>/dev/null | head -n 1")")" || true
     fi
+
     if [[ -z "${state}" ]]; then
       sleep 5
       continue
@@ -245,7 +246,7 @@ download_extract_tar(){
 
   echo "==> Downloading tarball..." >&2
   if command -v rsync >/dev/null 2>&1; then
-    rsync -av --progress "${remoteHost}:$(printf %q "${remoteTar}")" "${localAbs}/" >&2 || return 8
+    rsync -av --progress "${remoteHost}:$(printf %q "${remoteTar}")" "${localAbs}/" 2>/dev/null || return 8
   else
     scp -p "${remoteHost}:${remoteTar}" "${localAbs}/" >&2 || return 8
   fi
@@ -375,7 +376,7 @@ pull_remote_dir_tar_slurm() {
   local localTar
   localTar="$(download_extract_tar "${remoteHost}" "${remoteTar}" "${remoteJobDir}" "${localAbs}" "${tarName}" "${remoteBase}" "${stamp}")" || return $?
 
-  cleanup "${rmRemoteDir}" "${remoteHost}" "${localTar}" "${remoteDirPth}" "${remoteTar}" "${remoteJobDir}"
+  #cleanup "${rmRemoteDir}" "${remoteHost}" "${localTar}" "${remoteDirPth}" "${remoteTar}" "${remoteJobDir}"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
