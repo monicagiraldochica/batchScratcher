@@ -237,31 +237,31 @@ download_extract_tar(){
   local stamp="$7"
   local localTar localExtractDir
 
-  echo "==> Verifying remote tarball exists..." >&2
-  ssh -o BatchMode=yes "${remoteHost}" "test -f $(printf %q "${remoteTar}")" 2>/dev/null || {
-    echo "ERROR: Remote tarball not found: ${remoteTar}" >&2
-    ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "tail -n 200 \"${remoteJobDir}\"/slurm-*.out || true")"  2>/dev/null
+  echo "==> Verifying remote tarball exists..." >/dev/null 2>&1
+  ssh -o BatchMode=yes "${remoteHost}" "test -f $(printf %q "${remoteTar}")" >/dev/null 2>&1 || {
+    echo "ERROR: Remote tarball not found: ${remoteTar}" >/dev/null 2>&1
+    ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "tail -n 200 \"${remoteJobDir}\"/slurm-*.out || true")"  >/dev/null 2>&1
     return 7
   }
 
-  echo "==> Downloading tarball..." >&2
+  echo "==> Downloading tarball..." >/dev/null 2>&1
   if command -v rsync >/dev/null 2>&1; then
-    rsync -av --progress "${remoteHost}:$(printf %q "${remoteTar}")" "${localAbs}/" 2>/dev/null || return 8
+    rsync -av --progress "${remoteHost}:$(printf %q "${remoteTar}")" "${localAbs}/" >/dev/null 2>&1 || return 8
   else
-    scp -p "${remoteHost}:${remoteTar}" "${localAbs}/" >&2 || return 8
+    scp -p "${remoteHost}:${remoteTar}" "${localAbs}/" >/dev/null 2>&1 || return 8
   fi
 
-  echo "==> Extracting locally..." >&2
+  echo "==> Extracting locally..." >/dev/null 2>&1
   localTar="${localAbs%/}/${tarName}"
   localExtractDir="${localAbs%/}/${remoteBase}_${stamp}"
 
   mkdir -p "${localExtractDir}" || return 9
   tar -xzf "${localTar}" -C "${localExtractDir}" || return 9
 
-  echo "==> Done." >&2
-  echo "Extracted content is under: ${localExtractDir}" >&2
+  echo "==> Done." >/dev/null 2>&1
+  echo "Extracted content is under: ${localExtractDir}" >/dev/null 2>&1
 
-  printf '%s\n' "${localTar}"
+  printf '%s\n' "*****${localTar}*****"
 }
 
 cleanup(){
@@ -382,6 +382,7 @@ pull_remote_dir_tar_slurm() {
 
   local localTar
   localTar="$(download_extract_tar "${remoteHost}" "${remoteTar}" "${remoteJobDir}" "${localAbs}" "${tarName}" "${remoteBase}" "${stamp}")" || return $?
+  echo "+++localTar: ${localTar}+++"
 
   #cleanup "${rmRemoteDir}" "${remoteHost}" "${localTar}" "${remoteDirPth}" "${remoteTar}" "${remoteJobDir}"
 }
