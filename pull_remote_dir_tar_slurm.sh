@@ -102,7 +102,7 @@ write_remote_script() {
   local remoteDirPth="$8"
   local remoteParent="$9"
   local remoteTar="${10}"
-  local remoteHost="${11}"
+  local remoteHost="${11:-}"
 
   echo "==> Writing sbatch script on remote..."
 
@@ -155,7 +155,7 @@ chmod +x \"${remoteJobScript}\"
 
 submit_remote_job(){
   local remoteJobScript="$1"
-  local remoteHost="$2"
+  local remoteHost="${2:-}"
   local jobid
 
   echo "==> Submitting sbatch job..." >&2
@@ -176,7 +176,7 @@ submit_remote_job(){
 wait_remote_job(){
   local jobid="$1"
   local remoteJobDir="$2"
-  local remoteHost="$3"
+  local remoteHost="${3:-}"
 
   # BatchMode=yes tells SSH not to prompt for passwords or passphrases.
   echo "==> Waiting for Slurm job to finish..."
@@ -212,7 +212,7 @@ download_extract_tar(){
   local remoteTar="$1"
   local remoteJobDir="$2"
   local localAbs="$3"
-  local remoteHost="$4"
+  local remoteHost="${4:-}"
 
   echo "==> Verifying remote tarball exists..." >&2
   run_remote "test -f $(printf %q "${remoteTar}")" "${remoteHost}" || {
