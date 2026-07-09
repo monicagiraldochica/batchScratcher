@@ -1,34 +1,4 @@
 #!/usr/bin/env bash
-# pull_remote_dir_tar_slurm.sh
-#
-# Defines:
-#   pull_remote_dir_tar_slurm
-#
-# Usage:
-#   pull_remote_dir_tar_slurm --host=<user@host> --remote-dir=<remoteDirPth> --local-dir=<localDirPth> --slurm-acct=<slurm_account> --time-limit=<time_limit_DD-HH:MM:SS> --remove-remote=<rmRemoteDir_true|false> --threads=[pigz_threads]
-#
-# Example:
-#   source /path/to/pull_remote_dir_tar_slurm.sh
-#   pull_remote_dir_tar_slurm \
-#     eduwell@login-hpc.rcc.mcw.edu \
-#     /scratch/g/agreenberg/eduwell/projects/matlabBatchScratch/myDir \
-#     /home/eduwell/Downloads \
-#     agreenberg \
-#     00-02:00:00 \
-#     false \
-#     16
-#
-# Optional cleanup env vars:
-#   CLEAN_REMOTE_TAR=1      # remove remote tarball after success
-#   CLEAN_REMOTE_JOBDIR=1   # remove remote jobdir after success
-#   CLEAN_LOCAL_TAR=1       # remove local tarball after success
-#
-# Notes:
-# - Uses sbatch on the cluster to do tar+pigz on a compute node.
-# - Loads pigz via: module load pigz
-# - Creates tarball in the parent of remoteDirPth so it is not inside the archived tree.
-# - After job completes, downloads tarball (rsync if available, else scp), extracts locally,
-#   then optionally deletes the REMOTE DIRECTORY if rmRemoteDir=true.
 
 parse_args() {
   # Defaults
@@ -110,6 +80,17 @@ parse_args() {
   esac
 }
 
+run_remote(){
+  local cmd="$1"
+  local remoteHost="$2"
+
+  if [[ -n "${remoteHost}" ]]; then
+    ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "${cmd}")" 2>/dev/null
+  else
+    eval "${cmd}"
+  fi
+}
+
 write_remote_script() {
   local remoteJobDir="$1"
   local remoteJobScript="$2"
@@ -165,11 +146,11 @@ SBATCH
 chmod +x \"${remoteJobScript}\"
 "
 
-  if [[ -n "${remoteHost}" ]]; then
-    ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf '%q' "${script}")"  2>/dev/null
-  else
-    bash -lc "${script}"
-  fi
+  local rc
+  run_remote "${script}" "${remoteHost}"
+  rc=$?
+
+  return "$rc"
 }
 
 submit_remote_job(){
@@ -179,13 +160,13 @@ submit_remote_job(){
 
   echo "==> Submitting sbatch job..." >&2
 
-  # BatchMode=yes tells SSH not to prompt for passwords or passphrases. 
-  jobid="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "sbatch \"${remoteJobScript}\" | awk '{print \$4}'")" 2>/dev/null)" || return 5
+  jobid="$(run_remote "sbatch \"${remoteJobScript}\" | awk '{print \$4}'" "${remoteHost}")" || return 5
 
   if [[ -z "${jobid}" ]]; then
     echo "ERROR: Failed to obtain jobid from sbatch." >&2
     return 5
   fi
+
   echo "Submitted jobid: ${jobid}" >&2
   echo >&2
 
@@ -194,17 +175,17 @@ submit_remote_job(){
 
 wait_remote_job(){
   local jobid="$1"
-  local remoteHost="$2"
-  local remoteJobDir="$3"
+  local remoteJobDir="$2"
+  local remoteHost="$3"
 
   # BatchMode=yes tells SSH not to prompt for passwords or passphrases.
   echo "==> Waiting for Slurm job to finish..."
   while true; do
     local state
-    state="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "sacct -j ${jobid} --format=State --noheader 2>/dev/null | head -n 1 | awk '{print \$1}'")" 2>/dev/null)" || true
+    state="$(run_remote "sacct -j ${jobid} --format=State --noheader | head -n 1 | awk '{print \$1}'" "${remoteHost}")" || true
 
     if [[ -z "${state}" || "${state}" == "UNKNOWN" ]]; then
-      state="$(ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "squeue -j ${jobid} -h -o %T 2>/dev/null | head -n 1")")" || true
+      state="$(run_remote "squeue -j ${jobid} -h -o %T | head -n 1" "${remoteHost}")" || true
     fi
 
     if [[ -z "${state}" ]]; then
@@ -219,7 +200,7 @@ wait_remote_job(){
       FAILED|CANCELLED|TIMEOUT|OUT_OF_MEMORY|NODE_FAIL|PREEMPTED)
         echo "ERROR: Slurm job ended in state: ${state}"
         echo "Remote slurm output (if available):"
-        ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "ls -1 \"${remoteJobDir}\" 2>/dev/null || true; echo; tail -n 200 \"${remoteJobDir}\"/slurm-*.out 2>/dev/null || true")"
+        run_remote "ls -1 \"${remoteJobDir}\" || true; echo; tail -n 200 \"${remoteJobDir}\"/slurm-*.out || true" "${remoteHost}"
         return 6
         ;;
       *) sleep 10 ;;
@@ -228,95 +209,42 @@ wait_remote_job(){
 }
 
 download_extract_tar(){
-  local remoteHost="$1"
-  local remoteTar="$2"
-  local remoteJobDir="$3"
-  local localAbs="$4"
-  local tarName="$5"
-  local remoteBase="$6"
-  local stamp="$7"
-  local localTar localExtractDir
+  local remoteTar="$1"
+  local remoteJobDir="$2"
+  local localAbs="$3"
+  local remoteHost="$4"
 
-  echo "==> Verifying remote tarball exists..." >/dev/null 2>&1
-  ssh -o BatchMode=yes "${remoteHost}" "test -f $(printf %q "${remoteTar}")" >/dev/null 2>&1 || {
-    echo "ERROR: Remote tarball not found: ${remoteTar}" >/dev/null 2>&1
-    ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q "tail -n 200 \"${remoteJobDir}\"/slurm-*.out || true")"  >/dev/null 2>&1
+  echo "==> Verifying remote tarball exists..." >&2
+  run_remote "test -f $(printf %q "${remoteTar}")" "${remoteHost}" || {
+    echo "ERROR: Remote tarball not found: ${remoteTar}" >&2
+    run_remote "tail -n 200 \"${remoteJobDir}\"/slurm-*.out || true" "${remoteHost}"
     return 7
   }
+  echo >&2
 
-  echo "==> Downloading tarball..." >/dev/null 2>&1
+  echo "==> Downloading tarball..." >&2
   if command -v rsync >/dev/null 2>&1; then
-    rsync -av --progress "${remoteHost}:$(printf %q "${remoteTar}")" "${localAbs}/" >/dev/null 2>&1 || return 8
+    rsync -av --progress "${remoteHost}:$(printf %q "${remoteTar}")" "${localAbs}/" >&2 || return 8
   else
-    scp -p "${remoteHost}:${remoteTar}" "${localAbs}/" >/dev/null 2>&1 || return 8
+    scp -p "${remoteHost}:${remoteTar}" "${localAbs}/" >&2 || return 8
   fi
+  echo >&2
 
-  echo "==> Extracting locally..." >/dev/null 2>&1
+  echo "==> Extracting locally..." >&2
+  local localTar localExtractDir
   localTar="${localAbs%/}/${tarName}"
   localExtractDir="${localAbs%/}/${remoteBase}_${stamp}"
-
   mkdir -p "${localExtractDir}" || return 9
   tar -xzf "${localTar}" -C "${localExtractDir}" || return 9
+  echo >&2
 
-  echo "==> Done." >/dev/null 2>&1
-  echo "Extracted content is under: ${localExtractDir}" >/dev/null 2>&1
+  echo "==> Done." >&2
+  echo "Extracted content is under: ${localExtractDir}" >&2
 
-  printf '%s\n' "*****${localTar}*****"
+  printf '%s\n' "${localTar}"
 }
 
-cleanup(){
-  local rmRemoteDir="$1"
-  local remoteHost="$2"
-  local localTar="$3"
-  local remoteDirPth="$4"
-  local remoteTar="$5"
-  local remoteJobDir="$6"
-
-  echo "rmRemoteDir: ${rmRemoteDir}"
-  echo "remoteHost: ${remoteHost}"
-  echo "localTar: ${localTar}"
-  echo "remoteDirPth: ${remoteDirPth}"
-  echo "remoteTar: ${remoteTar}"
-  echo "remoteJobDir: ${remoteJobDir}"
-
-  #if [[ "${rmRemoteDir}" == "true" ]]; then
-  #  echo "==> rmRemoteDir=true: preparing to delete remote directory..."
-
-    # Safety: refuse to delete obviously dangerous targets
-    # (You can extend this list for your environment.)
-  #  local remoteToDelete="${remoteDirPth%/}"
-  #  if [[ -z "${remoteToDelete}" || "${remoteToDelete}" == "/" ]]; then
-  #    echo "ERROR: Refusing to delete remote directory: '${remoteToDelete}'"
-  #    return 10
-  #  fi
-
-    # Remote-side safety checks: must exist and be a directory, and not be the parent itself.
-  #  ssh -o BatchMode=yes "${remoteHost}" "bash -lc $(printf %q \
-  #    "set -euo pipefail
-  #     tgt=\"${remoteToDelete}\"
-  #     if [[ ! -d \"\$tgt\" ]]; then
-  #       echo \"ERROR: Remote delete target is not a directory (or no longer exists): \$tgt\" >&2
-  #       exit 11
-  #     fi
-  #     if [[ \"\$tgt\" == \"/\" ]]; then
-  #       echo \"ERROR: Refusing to delete '/'\" >&2
-  #       exit 12
-  #     fi
-  #     rm -rf -- \"\$tgt\"
-  #     echo \"Deleted remote directory: \$tgt\"")" 2>/dev/null || return 10
-  #fi
-
-  #echo "==> Cleaning remote tarball..."
-  #ssh -o BatchMode=yes "${remoteHost}" "rm -f $(printf %q "${remoteTar}")" 2>/dev/null || true
-  
-  #echo "==> Cleaning remote job dir..."
-  #ssh -o BatchMode=yes "${remoteHost}" "rm -rf $(printf %q "${remoteJobDir}")" 2>/dev/null || true
-  
-  #echo "==> Cleaning local tarball..."
-  #rm -f "${localTar}" || true
-}
-
-pull_remote_dir_tar_slurm() {
+pull_remote_dir_tar_slurm(){
   if (( $# > 0 )); then
     parse_args "$@" || return $?
   fi
@@ -373,18 +301,30 @@ pull_remote_dir_tar_slurm() {
   echo "pigz threads        : ${pigzThreads}"
   echo
 
-  write_remote_script "${remoteJobDir}" "${remoteJobScript}" "${remoteBase}" "${remoteJobOut}" "${slurmAccount}" "${timeLimit}" "${pigzThreads}" "${remoteDirPth}" "${remoteParent}" "${remoteTar}" "${remoteHost}" || return 4
+  write_remote_script "${remoteJobDir}" "${remoteJobScript}" "${remoteBase}" "${remoteJobOut}" "${slurmAccount}" "${timeLimit}" "${pigzThreads}" "${remoteDirPth}" "${remoteParent}" "${remoteTar}" "${remoteHost}" || { 
+    echo "ERROR: write_remote_script failed"
+    return 4 
+    }
+  echo
 
   local jobid
-  jobid="$(submit_remote_job "${remoteJobScript}" "${remoteHost}")" || return 5
-  echo "submitted *${jobid}*" ## Re-start testing in cluster from here
-  wait_remote_job "${jobid}" "${remoteHost}" "${remoteJobDir}"
+  jobid="$(submit_remote_job "${remoteJobScript}" "${remoteHost}")" || {
+    echo "ERROR: submit_remote_job failed"
+    return 5
+    }
+
+  wait_remote_job "${jobid}" "${remoteJobDir}" "${remoteHost}"
+  echo
 
   local localTar
-  localTar="$(download_extract_tar "${remoteHost}" "${remoteTar}" "${remoteJobDir}" "${localAbs}" "${tarName}" "${remoteBase}" "${stamp}")" || return $?
-  echo "+++localTar: ${localTar}+++"
+  localTar="$(download_extract_tar "${remoteTar}" "${remoteJobDir}" "${localAbs}" "${remoteHost}")" || {
+    rc=$?
+    echo "ERROR: download_extract_tar failed"
+    return $rc
+    }
+  echo
 
-  #cleanup "${rmRemoteDir}" "${remoteHost}" "${localTar}" "${remoteDirPth}" "${remoteTar}" "${remoteJobDir}"
+  echo "lelele: *${localTar}*"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
